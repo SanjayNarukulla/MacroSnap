@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 
-const API = "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL;
 
-export default function Chat({ session }) {
+export default function Chat({ session, onLogout }) {
   const [messages, setMessages] = useState(session.messages);
   const [text, setText] = useState("");
   const [image, setImage] = useState(null);
@@ -17,6 +17,10 @@ export default function Chat({ session }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  function getToken() {
+    return localStorage.getItem("token");
+  }
 
   function loadFile(file) {
     if (!file || !file.type.startsWith("image/")) return;
@@ -60,18 +64,16 @@ export default function Chat({ session }) {
     try {
       const res = await fetch(`${API}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${getToken()}` },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
-        console.error("Chat error:", data);
         setMessages((prev) => [...prev, { role: "assistant", kind: "text", content: `Error: ${data.detail ?? res.status}` }]);
       } else {
         setMessages((prev) => [...prev, { role: "assistant", kind: "text", content: data.reply }]);
       }
-    } catch (err) {
-      console.error("Fetch error:", err);
+    } catch {
       setMessages((prev) => [...prev, { role: "assistant", kind: "text", content: "Error connecting to server." }]);
     } finally {
       setLoading(false);
@@ -83,11 +85,14 @@ export default function Chat({ session }) {
     try {
       const res = await fetch(`${API}/send-telegram`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${getToken()}` },
         body: JSON.stringify({ session_id: session.session_id }),
       });
+      const data = await res.json();
+      if (!res.ok) console.error("Telegram error:", data);
       setTelegramStatus(res.ok ? "success" : "error");
-    } catch {
+    } catch (err) {
+      console.error("Telegram fetch error:", err);
       setTelegramStatus("error");
     }
     setTimeout(() => setTelegramStatus(""), 3000);
@@ -104,14 +109,20 @@ export default function Chat({ session }) {
             <p className="text-slate-400 text-xs">Hey {session.name}!</p>
           </div>
         </div>
-        <button
-          onClick={sendTelegram}
-          disabled={!hasUserMessage || telegramStatus === "sending"}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition"
-        >
-          <span>✈️</span>
-          {telegramStatus === "sending" ? "Sending..." : telegramStatus === "success" ? "Sent! ✅" : telegramStatus === "error" ? "Failed ❌" : "Send to Telegram"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={sendTelegram}
+            disabled={!hasUserMessage || telegramStatus === "sending"}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition"
+          >
+            <span>✈️</span>
+            {telegramStatus === "sending" ? "Sending..." : telegramStatus === "success" ? "Sent! ✅" : telegramStatus === "error" ? "Failed ❌" : "Send to Telegram"}
+          </button>
+          <button
+            onClick={onLogout}
+            className="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition"
+          >Logout</button>
+        </div>
       </div>
 
       {/* Messages */}

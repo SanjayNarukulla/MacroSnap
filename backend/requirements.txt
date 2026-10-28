@@ -4,3 +4,7 @@ google-genai
 requests
 python-multipart
 python-dotenv
+motor
+python-jose[cryptography]
+passlib[bcrypt]
+email-validator
