@@ -3,11 +3,11 @@ venv/
 __pycache__/
 *.pyc
 backend/.env
+backend/*.db
 
 # Node
 frontend/node_modules/
 frontend/dist/
-frontend/.env
 
 # Streamlit (old)
 .streamlit/
